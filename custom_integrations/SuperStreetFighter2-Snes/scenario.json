@@ -1,0 +1,38 @@
+{
+  "done": {
+    "condition": "any",
+    "variables": {
+      "hp_p1": {
+        "op": "zero"
+      },
+      "hp_p2": {
+        "op": "zero"
+      },
+      "time_left": {
+        "op": "zero"
+      }
+    }
+  },
+  "rewards": [
+    {
+      "variables": {
+        "hp_p1": {
+          "penalty": 1.0
+        },
+        "hp_p2": {
+          "penalty": -1.0
+        }
+      }
+    },
+    {
+      "variables": {
+        "hp_p1": {
+          "penalty": -1.0
+        },
+        "hp_p2": {
+          "penalty": 1.0
+        }
+      }
+    }
+  ]
+}

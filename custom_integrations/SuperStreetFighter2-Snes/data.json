@@ -1,0 +1,16 @@
+{
+  "info": {
+    "hp_p1": {
+      "address": 1590,
+      "type": "|u1"
+    },
+    "hp_p2": {
+      "address": 2166,
+      "type": "|u1"
+    },
+    "time_left": {
+      "address": 6441,
+      "type": "|d1"
+    }
+  }
+}
