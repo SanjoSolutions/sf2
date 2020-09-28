@@ -15,6 +15,8 @@ from baselines.ppo2 import ppo2
 from baselines.common.retro_wrappers import TimeLimit, wrap_deepmind_retro
 
 
+FPS = 30
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(SCRIPT_DIR, 'model')
 CHECKPOINTS_PATH = os.path.join(LOG_PATH, 'checkpoints')
@@ -86,14 +88,13 @@ def make_sf2_env():
         state=retro.State.DEFAULT,
         scenario=None,
         inttype=retro.data.Integrations.CUSTOM_ONLY,
-        obs_type=retro.Observations.RAM,  # retro.Observations.IMAGE,
+        obs_type=retro.Observations.IMAGE,  # retro.Observations.RAM,
         players=1,  # players=2
     )
-# TODO: Try CNN with frame_stack = 5 * 60 * FPS
-#   env = wrap_deepmind_retro(
-#     env,
-#     # frame_stack=64
-#   )
+    env = wrap_deepmind_retro(
+        env,
+        frame_stack=4
+    )
     return env
 
 
@@ -103,12 +104,11 @@ def main():
     number_of_environments = 1
     venv = SubprocVecEnv([make_sf2_env] * number_of_environments)
     video_path = './recording'
-    FPS = 30
     video_length = 5 * 60 * FPS
     venv = VecVideoRecorder(venv, video_path, record_video_trigger=lambda step: step %
                             video_length == 0, video_length=video_length)
     ppo2.learn(
-        network='mlp',
+        network='cnn_lstm',
         env=venv,
         total_timesteps=int(sys.maxsize),
         nsteps=10 * FPS,
