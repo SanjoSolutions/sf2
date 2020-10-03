@@ -17,20 +17,20 @@
     {
       "variables": {
         "hp_p1": {
-          "penalty": 1.0
+          "penalty": 0.00561797752
         },
         "hp_p2": {
-          "penalty": -1.0
+          "penalty": -0.00561797752
         }
       }
     },
     {
       "variables": {
         "hp_p1": {
-          "penalty": -1.0
+          "penalty": -0.00561797752
         },
         "hp_p2": {
-          "penalty": 1.0
+          "penalty": 0.00561797752
         }
       }
     }

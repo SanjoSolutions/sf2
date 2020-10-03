@@ -3,3 +3,4 @@ model
 recording
 .history
 rom.sfc
+__pycache__

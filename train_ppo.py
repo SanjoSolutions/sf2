@@ -11,7 +11,7 @@ import numpy as np
 import gym
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
-from baselines.ppo2 import ppo2
+from ppo2 import ppo2
 from baselines.common.retro_wrappers import TimeLimit, wrap_deepmind_retro
 
 
@@ -110,6 +110,7 @@ def main():
     ppo2.learn(
         network='cnn_lstm',
         env=venv,
+        eval_env=venv,
         total_timesteps=int(sys.maxsize),
         nsteps=10 * FPS,
         nminibatches=number_of_environments,
@@ -120,7 +121,7 @@ def main():
         ent_coef=.01,
         lr=lambda f: f * 2.5e-4,
         cliprange=0.1,
-        save_interval=1000,
+        save_interval=10,
         # load_path=MODEL_PATH,
     )
 
