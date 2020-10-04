@@ -108,9 +108,9 @@ def main():
     venv = VecVideoRecorder(venv, video_path, record_video_trigger=lambda step: step %
                             video_length == 0, video_length=video_length)
     ppo2.learn(
-        network='cnn_lstm',
+        network='impala_cnn_lstm',
         env=venv,
-        eval_env=venv,
+        # eval_env=venv,
         total_timesteps=int(sys.maxsize),
         nsteps=10 * FPS,
         nminibatches=number_of_environments,
@@ -121,7 +121,7 @@ def main():
         ent_coef=.01,
         lr=lambda f: f * 2.5e-4,
         cliprange=0.1,
-        save_interval=10,
+        save_interval=1000,
         # load_path=MODEL_PATH,
     )
 
