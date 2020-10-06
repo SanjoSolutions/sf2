@@ -1,6 +1,6 @@
 backups
-model
-recording
+model*
+recording*
 .history
 rom.sfc
 __pycache__
