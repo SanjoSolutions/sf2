@@ -9,10 +9,13 @@ import retro
 import os
 import numpy as np
 import gym
+import tensorflow as tf
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
 from ppo2 import ppo2
-from baselines.common.retro_wrappers import TimeLimit, wrap_deepmind_retro
+from baselines.common.atari_wrappers import WarpFrame, ScaledFloatFrame
+from acer import acer
+from RyuDiscretizer import RyuDiscretizer, RyuDiscretizerDefending
 
 
 FPS = 30
@@ -23,78 +26,22 @@ CHECKPOINTS_PATH = os.path.join(LOG_PATH, 'checkpoints')
 MODEL_PATH = os.path.join(CHECKPOINTS_PATH, 'latest')
 
 
-class StochasticFrameSkip(gym.Wrapper):
-    def __init__(self, env, n, stickprob):
-        gym.Wrapper.__init__(self, env)
-        self.n = n
-        self.stickprob = stickprob
-        self.curac = None
-        self.rng = np.random.RandomState()
-        self.supports_want_render = hasattr(env, "supports_want_render")
-
-    def reset(self, **kwargs):
-        self.curac = None
-        return self.env.reset(**kwargs)
-
-    def step(self, ac):
-        done = False
-        totrew = 0 if self.env.players <= 1 else [0] * self.env.players
-        for i in range(self.n):
-            # First step after reset, use action
-            if self.curac is None:
-                self.curac = ac
-            # First substep, delay with probability=stickprob
-            elif i == 0:
-                if self.rng.rand() > self.stickprob:
-                    self.curac = ac
-            # Second substep, new action definitely kicks in
-            elif i == 1:
-                self.curac = ac
-            if self.supports_want_render and i < self.n-1:
-                ob, rew, done, info = self.env.step(
-                    self.curac, want_render=False)
-            else:
-                ob, rew, done, info = self.env.step(self.curac)
-            if isinstance(totrew, list):
-                for index in range(len(min(totrew, rew))):
-                    totrew[index] += rew[index]
-            else:
-                totrew += rew
-            if done:
-                break
-        return ob, totrew, done, info
-
-    def seed(self, s):
-        self.rng.seed(s)
-
-
-def make_retro(*, game, state=None, max_episode_steps=4500, **kwargs):
-    import retro
-    if state is None:
-        state = retro.State.DEFAULT
-    env = retro.make(game, state, **kwargs)
-    # env = StochasticFrameSkip(env, n=4, stickprob=0.25)
-    if max_episode_steps is not None:
-        env = TimeLimit(env, max_episode_steps=max_episode_steps)
-    return env
-
-
 def make_sf2_env():
     retro.data.Integrations.add_custom_path(
         os.path.join(SCRIPT_DIR, "custom_integrations")
     )
-    env = make_retro(
+    env = retro.make(
         game='SuperStreetFighter2-Snes',
         state=retro.State.DEFAULT,
         scenario=None,
         inttype=retro.data.Integrations.CUSTOM_ONLY,
-        obs_type=retro.Observations.IMAGE,  # retro.Observations.RAM,
+        obs_type=retro.Observations.RAM,  # retro.Observations.IMAGE
         players=1,  # players=2
+        use_restricted_actions=retro.Actions.FILTERED,  # retro.Actions.DISCRETE
     )
-    env = wrap_deepmind_retro(
-        env,
-        frame_stack=4
-    )
+    env = RyuDiscretizerDefending(env)
+    # env = WarpFrame(env, width=61, height=47, grayscale=True)
+    # env = ScaledFloatFrame(env)
     return env
 
 
@@ -107,22 +54,58 @@ def main():
     video_length = 5 * 60 * FPS
     venv = VecVideoRecorder(venv, video_path, record_video_trigger=lambda step: step %
                             video_length == 0, video_length=video_length)
-    ppo2.learn(
-        network='impala_cnn_lstm',
+    # ppo2.learn(
+    #     network='mlp',
+    #     env=venv,
+    #     # eval_env=venv,
+    #     total_timesteps=40000000,
+    #     nsteps=128,  # 5 * FPS,
+    #     nminibatches=number_of_environments,
+    #     lam=0.95,
+    #     gamma=0.99,
+    #     noptepochs=3,
+    #     log_interval=1000,
+    #     ent_coef=.01,
+    #     lr=lambda alpha: 2.5e-4 * alpha,
+    #     vf_coef=1.0,
+    #     cliprange=lambda alpha: 0.1 * alpha,
+    #     save_interval=1000,
+    #     # load_path=MODEL_PATH,
+    #     # neuronal network parameters
+    #     activation=tf.nn.relu,
+    #     num_layers=2,  # 4, 2
+    #     num_hidden=48,  # 64, 64
+    #     layer_norm=False
+    # )
+
+    acer.learn(
+        network='mlp',  # 'impala_cnn'
         env=venv,
-        # eval_env=venv,
-        total_timesteps=int(sys.maxsize),
-        nsteps=10 * FPS,
-        nminibatches=number_of_environments,
-        lam=0.95,
+        total_timesteps=40000000,
+        nsteps=128,  # 5 * FPS,
+        q_coef=1.0,
+        ent_coef=0.001,
+        max_grad_norm=10,
+        lr=7e-4,
+        lrschedule='linear',
+        rprop_epsilon=1e-5,
+        rprop_alpha=0.99,
         gamma=0.99,
-        noptepochs=10,
-        log_interval=1,
-        ent_coef=.01,
-        lr=lambda f: f * 2.5e-4,
-        cliprange=0.1,
-        save_interval=1000,
+        log_interval=1000,
+        buffer_size=50000,
+        replay_ratio=4,
+        replay_start=10000,
+        c=10.0,
+        trust_region=True,
+        delta=1,
+        alpha=0.99,
         # load_path=MODEL_PATH,
+        save_interval=1000,
+        # neuronal network parameters
+        activation=tf.nn.relu,
+        num_layers=2,  # 4, 2
+        num_hidden=48,  # 64, 64
+        layer_norm=False
     )
 
 
